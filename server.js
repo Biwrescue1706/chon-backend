@@ -2,16 +2,18 @@ const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin');
 
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// เริ่ม Firebase Admin SDK
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+
+// 👇 สำคัญมาก!
+serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: 'https://mueangchonburi-c9438-default-rtdb.asia-southeast1.firebasedatabase.app'
+  databaseURL: "https://mueangchonburi-c9438.firebaseio.com"
 });
 
 const db = admin.database();
@@ -23,16 +25,14 @@ app.get('/', (req, res) => {
 
 app.get('/items', (req, res) => {
   const ref = db.ref('items');
-  ref.once(
-    'value',
-    snapshot => {
-      res.json(snapshot.val() || {}); // คืนค่าเป็น object ว่างถ้าไม่มีข้อมูล
-    },
-    errorObject => {
-      console.error('Read failed:', errorObject);
-      res.status(500).send('เกิดข้อผิดพลาดในการอ่านข้อมูล');
-    }
-  );
+  ref.once('value')
+    .then(snapshot => {
+      res.json(snapshot.val() || {});
+    })
+    .catch(err => {
+      console.error('[FIREBASE ERROR]', err);
+      res.status(500).send('เกิดข้อผิดพลาด');
+    });
 });
 
 app.post('/items', (req, res) => {
