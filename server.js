@@ -6,6 +6,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// const serviceAccount = require('./serviceAccountKey.json'); // ไฟล์ JSON ที่โหลดจาก Firebase Console
+
 // ดึง Service Account จาก ENV
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
