@@ -13,8 +13,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
-serviceAccount.private_key = serviceAccount.private_key?.replace(/\\n/g, '\n');
+let serviceAccount;
+
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+} else {
+  serviceAccount = require('./serviceAccountKey.json');
+}
+
+serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
