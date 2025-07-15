@@ -35,11 +35,11 @@ module.exports = (db) => {
       }, '10m'); // ระบุ expiresIn เป็น 10 นาที
 
       // ✅ ตั้ง cookie อายุ 10 นาที
-      res.cookie('jwt', token, {
+      res.cookie('token', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: true,
         sameSite: 'None',
-        maxAge: 10 * 60 * 1000
+        maxAge: 10 * 60 * 1000, // 10 นาที
       });
 
       res.json({
