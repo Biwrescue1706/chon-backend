@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin');
 const { verifyToken } = require('./auth');
+const cookieParser = require('cookie-parser');
 
 const registerRoutes = require('./routes/register');
 const loginRoutes = require('./routes/login');
@@ -23,6 +24,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use(cookieParser());
 
 let serviceAccount;
 
