@@ -10,7 +10,13 @@ const userRoutes = require('./routes/users');
 const itemRoutes = require('./routes/items');
 
 const app = express();
-app.use(cors());
+
+const corsOptions = {
+  origin: ['http://127.0.0.1:5500', 'http://localhost:5500', 'https://mueangchon1.onrender.com'], // ✅ แก้เป็นโดเมนจริง
+  credentials: true
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 let serviceAccount;
