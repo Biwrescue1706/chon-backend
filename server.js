@@ -12,7 +12,12 @@ const itemRoutes = require('./routes/items');
 const app = express();
 
 const corsOptions = {
-  origin: ['http://127.0.0.1:5500', 'http://localhost:5500', 'https://mueangchon1.onrender.com'], // ✅ แก้เป็นโดเมนจริง
+  origin: [
+    'http://127.0.0.1:5500',
+    'http://localhost:5500',
+    'https://mueangchon1.onrender.com',
+    'https://biwrescue1706.github.io' // ✅ เพิ่ม origin นี้
+  ],
   credentials: true
 };
 
