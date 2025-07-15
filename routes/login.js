@@ -31,15 +31,15 @@ module.exports = (db) => {
         UserId: user.UserId,
         Username: user.Username,
         Role: user.Role,
-        Name : user.Name
+        Name: user.Name
       }, '10m'); // ระบุ expiresIn เป็น 10 นาที
 
       // ✅ ตั้ง cookie อายุ 10 นาที
       res.cookie('jwt', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 10 * 60 * 1000 // 10 นาที
+        sameSite: 'None',
+        maxAge: 10 * 60 * 1000
       });
 
       res.json({

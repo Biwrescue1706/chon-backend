@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const SECRET_KEY = process.env.JWT_SECRET || 'my_super_secret_key';
 
-function generateToken(payload, expiresIn = '1h') {
+function generateToken(payload, expiresIn = '10m') {
   return jwt.sign(payload, SECRET_KEY, { expiresIn });
 }
 
