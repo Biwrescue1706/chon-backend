@@ -60,7 +60,7 @@ app.post('/items', (req, res) => {
 });
 
 // GET Users
-app.get('/Users', (req, res) => {
+app.get('/users', (req, res) => {
   const ref = db.ref('users');
   ref.once('value')
     .then(snapshot => {
