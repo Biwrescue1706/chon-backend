@@ -1,7 +1,11 @@
+// ===== เรียกใช้ dotenv ก่อนอื่นเลย =====
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin');
 const bcrypt = require('bcrypt');
+const { generateToken, verifyToken } = require('./auth');
 
 const SALT_ROUNDS = 10;
 
@@ -9,9 +13,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ======= Firebase Setup =======
+// ===== Firebase Setup =====
+// กรณีนี้ยังใช้ไฟล์ serviceAccountKey.json อยู่
 // const serviceAccount = require('./serviceAccountKey.json');
-
 // หรือถ้าใช้ ENV
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
@@ -24,34 +28,27 @@ admin.initializeApp({
 
 const db = admin.database();
 
-// ======= Routes =======
-
-// Health Check
+// ===== Health Check =====
 app.get('/', (req, res) => {
   res.send('✅ Backend OK - Firebase Realtime Database');
 });
 
-// GET items
+// ===== CRUD Items =====
 app.get('/items', (req, res) => {
-  const ref = db.ref('items');
-  ref.once('value')
-    .then(snapshot => {
-      res.json(snapshot.val() || {});
-    })
+  db.ref('items').once('value')
+    .then(snapshot => res.json(snapshot.val() || {}))
     .catch(err => {
       console.error('[FIREBASE ERROR]', err);
       res.status(500).send('เกิดข้อผิดพลาด');
     });
 });
 
-// POST item
 app.post('/items', (req, res) => {
   const { name } = req.body;
   if (!name) return res.status(400).send('กรุณาส่ง name ด้วย');
 
   const ref = db.ref('items').push();
-  ref
-    .set({ name })
+  ref.set({ name })
     .then(() => res.status(201).json({ id: ref.key, name }))
     .catch(err => {
       console.error('Write failed:', err);
@@ -59,20 +56,17 @@ app.post('/items', (req, res) => {
     });
 });
 
-// GET Users
+// ===== GET Users =====
 app.get('/users', (req, res) => {
-  const ref = db.ref('users');
-  ref.once('value')
-    .then(snapshot => {
-      res.json(snapshot.val() || {});
-    })
+  db.ref('users').once('value')
+    .then(snapshot => res.json(snapshot.val() || {}))
     .catch(err => {
       console.error('[FIREBASE ERROR]', err);
       res.status(500).send('เกิดข้อผิดพลาด');
     });
 });
 
-// ======= Register =======
+// ===== Register =====
 app.post('/register', async (req, res) => {
   const { username, password, name, email, role } = req.body;
 
@@ -82,7 +76,6 @@ app.post('/register', async (req, res) => {
 
   try {
     const ref = db.ref('users');
-
     const snapshot = await ref.once('value');
     const users = snapshot.val() || {};
 
@@ -119,7 +112,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// ======= Login =======
+// ===== Login =====
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
@@ -142,8 +135,15 @@ app.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
     }
 
+    const token = generateToken({
+      UserId: user.UserId,
+      Username: user.Username,
+      Role: user.Role
+    });
+
     res.status(200).json({
       message: 'เข้าสู่ระบบสำเร็จ',
+      token,
       user: {
         UserId: user.UserId,
         Username: user.Username,
@@ -159,9 +159,17 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// ======= Update User =======
+// ===== Protected Example =====
+app.get('/private-data', verifyToken, (req, res) => {
+  res.json({
+    message: '✅ คุณเข้าถึงข้อมูลลับได้!',
+    user: req.user
+  });
+});
+
+// ===== Update User =====
 app.put('/users/:id', async (req, res) => {
-  const userId = req.params.id; // Firebase push key
+  const userId = req.params.id;
   const { name, email, role } = req.body;
 
   if (!name && !email && !role) {
@@ -170,7 +178,6 @@ app.put('/users/:id', async (req, res) => {
 
   try {
     const ref = db.ref(`users/${userId}`);
-
     const snapshot = await ref.once('value');
     if (!snapshot.exists()) {
       return res.status(404).json({ error: 'ไม่พบผู้ใช้นี้' });
@@ -190,20 +197,18 @@ app.put('/users/:id', async (req, res) => {
   }
 });
 
-// ======= Delete User =======
+// ===== Delete User =====
 app.delete('/users/:id', async (req, res) => {
-  const userId = req.params.id; // Firebase push key
+  const userId = req.params.id;
 
   try {
     const ref = db.ref(`users/${userId}`);
-
     const snapshot = await ref.once('value');
     if (!snapshot.exists()) {
       return res.status(404).json({ error: 'ไม่พบผู้ใช้นี้' });
     }
 
     await ref.remove();
-
     res.status(200).json({ message: 'ลบผู้ใช้สำเร็จ' });
   } catch (err) {
     console.error('[DELETE ERROR]', err);
@@ -211,11 +216,11 @@ app.delete('/users/:id', async (req, res) => {
   }
 });
 
-// ======= Fallback =======
+// ===== Fallback =====
 app.use((req, res) => {
   res.status(404).send('ไม่พบเส้นทางนี้');
 });
 
-// ======= Start =======
+// ===== Start =====
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
