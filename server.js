@@ -13,8 +13,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// const serviceAccount = require('./serviceAccountKey.json');
-
 // const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
 serviceAccount.private_key = serviceAccount.private_key?.replace(/\\n/g, '\n');
 
