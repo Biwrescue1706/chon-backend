@@ -1,17 +1,13 @@
-// auth.js
 const jwt = require('jsonwebtoken');
+const SECRET_KEY = process.env.JWT_SECRET || 'my_super_secret_key';
 
-const SECRET_KEY = process.env.JWT_SECRET || 'my_super_secret_key'; // แนะนำใช้ ENV
-
-// สร้าง token
-function generateToken(payload) {
-  return jwt.sign(payload, SECRET_KEY, { expiresIn: '1h' });
+function generateToken(payload, expiresIn = '1h') {
+  return jwt.sign(payload, SECRET_KEY, { expiresIn });
 }
 
-// ตรวจสอบ token
 function verifyToken(req, res, next) {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // "Bearer TOKEN"
+  const token = authHeader?.split(' ')[1] || req.cookies?.jwt;
 
   if (!token) {
     return res.status(401).json({ error: 'ไม่ได้ส่ง token' });
@@ -21,7 +17,7 @@ function verifyToken(req, res, next) {
     if (err) {
       return res.status(403).json({ error: 'Token ไม่ถูกต้องหรือหมดอายุ' });
     }
-    req.user = decoded; // attach payload ไปใน req.user
+    req.user = decoded;
     next();
   });
 }
