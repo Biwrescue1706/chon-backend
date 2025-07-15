@@ -9,7 +9,7 @@ app.use(express.json());
 // const serviceAccount = require('./serviceAccountKey.json'); // ไฟล์ JSON ที่โหลดจาก Firebase Console
 
 // ดึง Service Account จาก ENV
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+ const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
 // ✅ สำคัญ: แก้ newline ให้ private_key
 serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
@@ -53,6 +53,19 @@ app.post('/items', (req, res) => {
     .catch(err => {
       console.error('Write failed:', err);
       res.status(500).send('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+    });
+});
+
+// GET Users
+app.get('/Users', (req, res) => {
+  const ref = db.ref('users');
+  ref.once('value')
+    .then(snapshot => {
+      res.json(snapshot.val() || {});
+    })
+    .catch(err => {
+      console.error('[FIREBASE ERROR]', err);
+      res.status(500).send('เกิดข้อผิดพลาด');
     });
 });
 
