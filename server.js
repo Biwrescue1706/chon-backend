@@ -2,15 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin');
-const bcrypt = require('bcrypt');
 const cookieParser = require('cookie-parser');
+const bcrypt = require('bcrypt');
 const { generateToken, verifyToken } = require('./auth');
 
 const app = express();
-
-const SECRET_KEY = process.env.JWT_SECRET || 'my_super_secret_key';
 const SALT_ROUNDS = 10;
 
+// === CORS ===
 const corsOptions = {
   origin: [
     'http://127.0.0.1:5500',
@@ -20,7 +19,6 @@ const corsOptions = {
   ],
   credentials: true
 };
-
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
@@ -33,7 +31,6 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
 } else {
   serviceAccount = require('./serviceAccountKey.json');
 }
-
 serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
 
 admin.initializeApp({
@@ -42,25 +39,24 @@ admin.initializeApp({
 });
 
 const db = admin.database();
+const booksRef = db.ref('books');
+const usersRef = db.ref('users');
 
 // === Health ===
 app.get('/', (req, res) => {
   res.send('✅ Backend OK');
 });
 
-// === Register ===
+// === Auth: Register ===
 app.post('/register', async (req, res) => {
   const { username, password, name, email, role } = req.body;
-
   if (!username || !password || !name || !email || !role) {
     return res.status(400).json({ error: 'ข้อมูลไม่ครบถ้วน' });
   }
 
   try {
-    const ref = db.ref('users');
-    const snapshot = await ref.once('value');
+    const snapshot = await usersRef.once('value');
     const users = snapshot.val() || {};
-
     const isDuplicate = Object.values(users).some(u => u.Username === username);
     if (isDuplicate) {
       return res.status(409).json({ error: 'Username ซ้ำ' });
@@ -71,12 +67,11 @@ app.post('/register', async (req, res) => {
       const idNum = parseInt(u.UserId);
       if (!isNaN(idNum) && idNum > maxId) maxId = idNum;
     });
-
     const newUserId = maxId + 1;
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
     const now = new Date().toISOString();
 
-    const newUserRef = ref.push();
+    const newUserRef = usersRef.push();
     await newUserRef.set({
       UserId: newUserId,
       Username: username,
@@ -95,7 +90,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// === Login ===
+// === Auth: Login ===
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
@@ -103,19 +98,13 @@ app.post('/login', async (req, res) => {
   }
 
   try {
-    const ref = db.ref('users');
-    const snapshot = await ref.once('value');
+    const snapshot = await usersRef.once('value');
     const users = snapshot.val() || {};
-
     const user = Object.values(users).find(u => u.Username === username);
-    if (!user) {
-      return res.status(401).json({ error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
-    }
+    if (!user) return res.status(401).json({ error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
 
     const match = await bcrypt.compare(password, user.Password);
-    if (!match) {
-      return res.status(401).json({ error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
-    }
+    if (!match) return res.status(401).json({ error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
 
     const token = generateToken({
       UserId: user.UserId,
@@ -140,14 +129,13 @@ app.post('/login', async (req, res) => {
         Role: user.Role
       }
     });
-
   } catch (err) {
     console.error('[LOGIN ERROR]', err);
     res.status(500).json({ error: 'เกิดข้อผิดพลาด' });
   }
 });
 
-// === Logout ===
+// === Auth: Logout ===
 app.post('/logout', (req, res) => {
   res.cookie('jwt', '', {
     httpOnly: true,
@@ -158,34 +146,30 @@ app.post('/logout', (req, res) => {
   res.json({ message: 'ออกจากระบบแล้ว' });
 });
 
-// === CRUD Users ===
-app.get('/users', async (req, res) => {
-  const ref = db.ref('users');
-  const snapshot = await ref.once('value');
+// === Users ===
+app.get('/users', async (_req, res) => {
+  const snapshot = await usersRef.once('value');
   res.json(snapshot.val() || {});
 });
 
-app.get('/users/:userid', async (req, res) => {
-  const id = req.params.userid;
-  const snapshot = await db.ref('users').once('value');
+app.get('/users/:id', async (req, res) => {
+  const id = req.params.id;
+  const snapshot = await usersRef.once('value');
   const users = snapshot.val() || {};
-  const foundUser = Object.values(users).find(u => String(u.UserId) === id);
-  if (!foundUser) return res.status(404).json({ error: 'ไม่พบผู้ใช้นี้' });
-  res.json(foundUser);
+  const found = Object.values(users).find(u => String(u.UserId) === id);
+  if (!found) return res.status(404).json({ error: 'ไม่พบผู้ใช้นี้' });
+  res.json(found);
 });
 
-app.put('/users/:userid', async (req, res) => {
-  const id = req.params.userid;
+app.put('/users/:id', async (req, res) => {
+  const id = req.params.id;
   const { name, email, role } = req.body;
-
-  const snapshot = await db.ref('users').once('value');
+  const snapshot = await usersRef.once('value');
   const users = snapshot.val() || {};
-
   let foundKey = null;
   Object.entries(users).forEach(([key, u]) => {
     if (String(u.UserId) === id) foundKey = key;
   });
-
   if (!foundKey) return res.status(404).json({ error: 'ไม่พบผู้ใช้นี้' });
 
   const updates = {};
@@ -193,44 +177,65 @@ app.put('/users/:userid', async (req, res) => {
   if (email) updates.Email = email;
   if (role) updates.Role = role;
 
-  await db.ref(`users/${foundKey}`).update(updates);
-
+  await usersRef.child(foundKey).update(updates);
   res.json({ message: 'อัปเดตสำเร็จ', updates });
 });
 
-app.delete('/users/:userid', async (req, res) => {
-  const id = req.params.userid;
-  const snapshot = await db.ref('users').once('value');
+app.delete('/users/:id', async (req, res) => {
+  const id = req.params.id;
+  const snapshot = await usersRef.once('value');
   const users = snapshot.val() || {};
-
   let foundKey = null;
   Object.entries(users).forEach(([key, u]) => {
     if (String(u.UserId) === id) foundKey = key;
   });
-
   if (!foundKey) return res.status(404).json({ error: 'ไม่พบผู้ใช้นี้' });
 
-  await db.ref(`users/${foundKey}`).remove();
-  res.json({ message: 'ลบผู้ใช้สำเร็จ' });
+  await usersRef.child(foundKey).remove();
+  res.json({ message: 'ลบสำเร็จ' });
 });
 
-// === CRUD Items ===
-app.get('/items', async (req, res) => {
-  const snapshot = await db.ref('items').once('value');
+// === Books ===
+app.post('/books', async (req, res) => {
+  const { BooksId, BookNo, date, from, to = 'ผกก', Title, Work, note } = req.body;
+  if (!Title) return res.status(400).json({ error: 'ต้องระบุ Title' });
+
+  const ref = booksRef.push();
+  await ref.set({ BooksId, BookNo, date, from, to, Title, Work, note });
+  res.status(201).json({ id: ref.key, BooksId });
+});
+
+app.get('/books', async (_req, res) => {
+  const snapshot = await booksRef.once('value');
   res.json(snapshot.val() || {});
 });
 
-app.post('/items', async (req, res) => {
-  const { name } = req.body;
-  if (!name) return res.status(400).send('กรุณาส่ง name');
-
-  const ref = db.ref('items').push();
-  await ref.set({ name });
-
-  res.status(201).json({ id: ref.key, name });
+app.get('/books/:id', async (req, res) => {
+  const id = req.params.id;
+  const snapshot = await booksRef.child(id).once('value');
+  if (!snapshot.exists()) return res.status(404).json({ error: 'ไม่พบหนังสือ' });
+  res.json(snapshot.val());
 });
 
-// === Private Data ===
+app.put('/books/:id', async (req, res) => {
+  const id = req.params.id;
+  const snapshot = await booksRef.child(id).once('value');
+  if (!snapshot.exists()) return res.status(404).json({ error: 'ไม่พบหนังสือ' });
+
+  await booksRef.child(id).update(req.body);
+  res.json({ message: 'อัปเดตสำเร็จ', updates: req.body });
+});
+
+app.delete('/books/:id', async (req, res) => {
+  const id = req.params.id;
+  const snapshot = await booksRef.child(id).once('value');
+  if (!snapshot.exists()) return res.status(404).json({ error: 'ไม่พบหนังสือ' });
+
+  await booksRef.child(id).remove();
+  res.json({ message: 'ลบหนังสือสำเร็จ' });
+});
+
+// === Private Protect ===
 app.get('/private-data', verifyToken, (req, res) => {
   res.json({ message: '✅ ข้อมูลลับ', user: req.user });
 });
