@@ -1,4 +1,4 @@
-const API_BASE = 'https://mueangchon1.onrender.com';
+const API_BASE = 'https://mueangchon1.onrender.com/api';
 
 function logout() {
   fetch(`${API_BASE}/logout`, {
