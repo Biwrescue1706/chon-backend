@@ -4,6 +4,7 @@ const cors = require('cors');
 const admin = require('firebase-admin');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcrypt');
+const path = require('path');
 const { generateToken, verifyToken } = require('./auth');
 
 const app = express();
@@ -14,19 +15,20 @@ const corsOptions = {
   origin: [
     'http://127.0.0.1:5500',
     'http://localhost:3000',
-    'https://mueangchon1.onrender.com',
-    'https://mueangchon1-o1ad.onrender.com',
+    'https://mueangchon1.onrender.com'
   ],
-  credentials: true
+  credentials: true,
 };
 
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 
-// === Firebase Admin ===
-let serviceAccount;
+// Serve static files from public folder
+app.use(express.static(path.join(__dirname, 'public')));
 
+// Firebase Admin Setup
+let serviceAccount;
 if (process.env.FIREBASE_SERVICE_ACCOUNT) {
   serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 } else {
@@ -43,13 +45,15 @@ const db = admin.database();
 const booksRef = db.ref('books');
 const usersRef = db.ref('users');
 
-// === Health ===
-app.get('/', (req, res) => {
-  res.send('✅ Backend OK');
+// Health Check
+app.get('/api/health', (req, res) => {
+  res.json({ status: '✅ Backend OK' });
 });
 
-// === Auth: Register ===
-app.post('/register', async (req, res) => {
+// --- Auth Routes ---
+
+// Register
+app.post('/api/register', async (req, res) => {
   const { username, password, name, email, role } = req.body;
   if (!username || !password || !name || !email || !role) {
     return res.status(400).json({ error: 'ข้อมูลไม่ครบถ้วน' });
@@ -59,9 +63,7 @@ app.post('/register', async (req, res) => {
     const snapshot = await usersRef.once('value');
     const users = snapshot.val() || {};
     const isDuplicate = Object.values(users).some(u => u.Username === username);
-    if (isDuplicate) {
-      return res.status(409).json({ error: 'Username ซ้ำ' });
-    }
+    if (isDuplicate) return res.status(409).json({ error: 'Username ซ้ำ' });
 
     let maxId = 0;
     Object.values(users).forEach(u => {
@@ -84,19 +86,16 @@ app.post('/register', async (req, res) => {
     });
 
     res.status(201).json({ id: newUserRef.key, UserId: newUserId });
-
   } catch (err) {
     console.error('[REGISTER ERROR]', err);
     res.status(500).json({ error: 'เกิดข้อผิดพลาด' });
   }
 });
 
-// === Auth: Login ===
-app.post('/login', async (req, res) => {
+// Login
+app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
-  if (!username || !password) {
-    return res.status(400).json({ error: 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน' });
-  }
+  if (!username || !password) return res.status(400).json({ error: 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน' });
 
   try {
     const snapshot = await usersRef.once('value');
@@ -136,8 +135,8 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// === Auth: Logout ===
-app.post('/logout', (req, res) => {
+// Logout
+app.post('/api/logout', (req, res) => {
   res.cookie('jwt', '', {
     httpOnly: true,
     secure: true,
@@ -147,13 +146,14 @@ app.post('/logout', (req, res) => {
   res.json({ message: 'ออกจากระบบแล้ว' });
 });
 
-// === Users ===
-app.get('/users', async (_req, res) => {
+// --- User APIs ---
+
+app.get('/api/users', async (_req, res) => {
   const snapshot = await usersRef.once('value');
   res.json(snapshot.val() || {});
 });
 
-app.get('/users/:id', async (req, res) => {
+app.get('/api/users/:id', async (req, res) => {
   const id = req.params.id;
   const snapshot = await usersRef.once('value');
   const users = snapshot.val() || {};
@@ -162,7 +162,7 @@ app.get('/users/:id', async (req, res) => {
   res.json(found);
 });
 
-app.put('/users/:id', async (req, res) => {
+app.put('/api/users/:id', async (req, res) => {
   const id = req.params.id;
   const { name, email, role } = req.body;
   const snapshot = await usersRef.once('value');
@@ -182,7 +182,7 @@ app.put('/users/:id', async (req, res) => {
   res.json({ message: 'อัปเดตสำเร็จ', updates });
 });
 
-app.delete('/users/:id', async (req, res) => {
+app.delete('/api/users/:id', async (req, res) => {
   const id = req.params.id;
   const snapshot = await usersRef.once('value');
   const users = snapshot.val() || {};
@@ -196,8 +196,9 @@ app.delete('/users/:id', async (req, res) => {
   res.json({ message: 'ลบสำเร็จ' });
 });
 
-// === Books ===
-app.post('/books', async (req, res) => {
+// --- Book APIs ---
+
+app.post('/api/books', async (req, res) => {
   const { BooksId, BookNo, date, from, to = 'ผกก', Title, Work, note } = req.body;
   if (!Title) return res.status(400).json({ error: 'ต้องระบุ Title' });
 
@@ -206,19 +207,19 @@ app.post('/books', async (req, res) => {
   res.status(201).json({ id: ref.key, BooksId });
 });
 
-app.get('/books', async (_req, res) => {
+app.get('/api/books', async (_req, res) => {
   const snapshot = await booksRef.once('value');
   res.json(snapshot.val() || {});
 });
 
-app.get('/books/:id', async (req, res) => {
+app.get('/api/books/:id', async (req, res) => {
   const id = req.params.id;
   const snapshot = await booksRef.child(id).once('value');
   if (!snapshot.exists()) return res.status(404).json({ error: 'ไม่พบหนังสือ' });
   res.json(snapshot.val());
 });
 
-app.put('/books/:id', async (req, res) => {
+app.put('/api/books/:id', async (req, res) => {
   const id = req.params.id;
   const snapshot = await booksRef.child(id).once('value');
   if (!snapshot.exists()) return res.status(404).json({ error: 'ไม่พบหนังสือ' });
@@ -227,7 +228,7 @@ app.put('/books/:id', async (req, res) => {
   res.json({ message: 'อัปเดตสำเร็จ', updates: req.body });
 });
 
-app.delete('/books/:id', async (req, res) => {
+app.delete('/api/books/:id', async (req, res) => {
   const id = req.params.id;
   const snapshot = await booksRef.child(id).once('value');
   if (!snapshot.exists()) return res.status(404).json({ error: 'ไม่พบหนังสือ' });
@@ -236,16 +237,12 @@ app.delete('/books/:id', async (req, res) => {
   res.json({ message: 'ลบหนังสือสำเร็จ' });
 });
 
-// === Private Protect ===
-app.get('/private-data', verifyToken, (req, res) => {
+// --- Private Route Example ---
+
+app.get('/api/private-data', verifyToken, (req, res) => {
   res.json({ message: '✅ ข้อมูลลับ', user: req.user });
 });
 
-// === Fallback ===
-app.use((req, res) => {
-  res.status(404).send('ไม่พบเส้นทางนี้');
-});
-
-// === Start ===
+// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
