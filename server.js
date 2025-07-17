@@ -14,7 +14,7 @@ const SALT_ROUNDS = 10;
 // === CORS ===
 const corsOptions = {
   origin: [
-    'http://127.0.0.1:5501',
+    'http://127.0.0.1:5501',    // แก้จาก 5500 เป็น 5501 ถ้าคุณใช้ live server port นี้
     'http://localhost:3000',
     'https://mueangchon1.onrender.com'
   ],
@@ -47,13 +47,13 @@ const booksRef = db.ref('books');
 const usersRef = db.ref('users');
 
 // Health Check
-app.get('api/health', (req, res) => {
+app.get('/api/health', (req, res) => {
   res.json({ status: '✅ Backend OK' });
 });
 
 // --- Auth Routes ---
 
-app.post('api/register', async (req, res) => {
+app.post('/api/register', async (req, res) => {
   const { username, password, name, email, role } = req.body;
   if (!username || !password || !name || !email || !role) {
     return res.status(400).json({ error: 'ข้อมูลไม่ครบถ้วน' });
@@ -92,7 +92,7 @@ app.post('api/register', async (req, res) => {
   }
 });
 
-app.post('api/login', async (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน' });
 
@@ -109,16 +109,14 @@ app.post('api/login', async (req, res) => {
       UserId: user.UserId,
       Username: user.Username,
       Role: user.Role
-    }, '10m');
-
-    const isProduction = process.env.NODE_ENV === 'production';
-
+    });
     res.cookie('jwt', token, {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? 'None' : 'Lax',
-      maxAge: 10 * 60 * 1000
+      secure: true, // ต้องใช้ https เท่านั้น ถ้า local อาจต้อง set false
+      sameSite: 'None',
+      maxAge: 10 * 60 * 1000 // 10 นาที
     });
+    res.json({ message: 'เข้าสู่ระบบสำเร็จ' });
 
     res.json({
       message: 'เข้าสู่ระบบสำเร็จ',
@@ -136,25 +134,26 @@ app.post('api/login', async (req, res) => {
   }
 });
 
-app.post('api/logout', (req, res) => {
+app.post('/api/logout', (req, res) => {
   const isProduction = process.env.NODE_ENV === 'production';
   res.cookie('jwt', '', {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? 'None' : 'Lax',
-    maxAge: 0
+    maxAge: 0,
+    path: '/',
   });
   res.json({ message: 'ออกจากระบบแล้ว' });
 });
 
 // --- User APIs ---
 
-app.get('api/users', async (_req, res) => {
+app.get('/api/users', async (_req, res) => {
   const snapshot = await usersRef.once('value');
   res.json(snapshot.val() || {});
 });
 
-app.get('api/users/:id', async (req, res) => {
+app.get('/api/users/:id', async (req, res) => {
   const id = req.params.id;
   const snapshot = await usersRef.once('value');
   const users = snapshot.val() || {};
@@ -163,7 +162,7 @@ app.get('api/users/:id', async (req, res) => {
   res.json(found);
 });
 
-app.put('api/users/:id', async (req, res) => {
+app.put('/api/users/:id', async (req, res) => {
   const id = req.params.id;
   const { name, email, role } = req.body;
   const snapshot = await usersRef.once('value');
@@ -183,7 +182,7 @@ app.put('api/users/:id', async (req, res) => {
   res.json({ message: 'อัปเดตสำเร็จ', updates });
 });
 
-app.delete('api/users/:id', async (req, res) => {
+app.delete('/api/users/:id', async (req, res) => {
   const id = req.params.id;
   const snapshot = await usersRef.once('value');
   const users = snapshot.val() || {};
@@ -199,7 +198,7 @@ app.delete('api/users/:id', async (req, res) => {
 
 // --- Book APIs ---
 
-app.post('api/books', async (req, res) => {
+app.post('/api/books', async (req, res) => {
   const { BooksId, BookNo, date, from, to = 'ผกก', Title, Work, note } = req.body;
   if (!Title) return res.status(400).json({ error: 'ต้องระบุ Title' });
 
@@ -208,19 +207,19 @@ app.post('api/books', async (req, res) => {
   res.status(201).json({ id: ref.key, BooksId });
 });
 
-app.get('api/books', async (_req, res) => {
+app.get('/api/books', async (_req, res) => {
   const snapshot = await booksRef.once('value');
   res.json(snapshot.val() || {});
 });
 
-app.get('api/books/:id', async (req, res) => {
+app.get('/api/books/:id', async (req, res) => {
   const id = req.params.id;
   const snapshot = await booksRef.child(id).once('value');
   if (!snapshot.exists()) return res.status(404).json({ error: 'ไม่พบหนังสือ' });
   res.json(snapshot.val());
 });
 
-app.put('api/books/:id', async (req, res) => {
+app.put('/api/books/:id', async (req, res) => {
   const id = req.params.id;
   const snapshot = await booksRef.child(id).once('value');
   if (!snapshot.exists()) return res.status(404).json({ error: 'ไม่พบหนังสือ' });
@@ -229,7 +228,7 @@ app.put('api/books/:id', async (req, res) => {
   res.json({ message: 'อัปเดตสำเร็จ', updates: req.body });
 });
 
-app.delete('api/books/:id', async (req, res) => {
+app.delete('/api/books/:id', async (req, res) => {
   const id = req.params.id;
   const snapshot = await booksRef.child(id).once('value');
   if (!snapshot.exists()) return res.status(404).json({ error: 'ไม่พบหนังสือ' });
@@ -239,8 +238,7 @@ app.delete('api/books/:id', async (req, res) => {
 });
 
 // --- Private Route Example ---
-
-app.get('api/private-data', verifyToken, (req, res) => {
+app.get('/api/private-data', verifyToken, (req, res) => {
   res.json({ message: '✅ ข้อมูลลับ', user: req.user });
 });
 
