@@ -5,6 +5,7 @@ const admin = require('firebase-admin');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcrypt');
 const path = require('path');
+const fs = require('fs');
 const { generateToken, verifyToken } = require('./auth');
 
 const app = express();
@@ -19,8 +20,8 @@ const corsOptions = {
   ],
   credentials: true,
 };
-
 app.use(cors(corsOptions));
+
 app.use(express.json());
 app.use(cookieParser());
 
@@ -52,7 +53,6 @@ app.get('/api/health', (req, res) => {
 
 // --- Auth Routes ---
 
-// Register
 app.post('/api/register', async (req, res) => {
   const { username, password, name, email, role } = req.body;
   if (!username || !password || !name || !email || !role) {
@@ -92,7 +92,6 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// Login
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน' });
@@ -112,10 +111,12 @@ app.post('/api/login', async (req, res) => {
       Role: user.Role
     }, '10m');
 
+    const isProduction = process.env.NODE_ENV === 'production';
+
     res.cookie('jwt', token, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'None',
+      secure: isProduction,
+      sameSite: isProduction ? 'None' : 'Lax',
       maxAge: 10 * 60 * 1000
     });
 
@@ -135,12 +136,12 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Logout
 app.post('/api/logout', (req, res) => {
+  const isProduction = process.env.NODE_ENV === 'production';
   res.cookie('jwt', '', {
     httpOnly: true,
-    secure: true,
-    sameSite: 'None',
+    secure: isProduction,
+    sameSite: isProduction ? 'None' : 'Lax',
     maxAge: 0
   });
   res.json({ message: 'ออกจากระบบแล้ว' });
@@ -241,6 +242,25 @@ app.delete('/api/books/:id', async (req, res) => {
 
 app.get('/api/private-data', verifyToken, (req, res) => {
   res.json({ message: '✅ ข้อมูลลับ', user: req.user });
+});
+
+// --- SPA Fallback for client-side routing ---
+// app.get('*', async (req, res, next) => {
+//   console.log('Fallback catch:', req.originalUrl);
+//   try {
+//     const indexPath = path.join(__dirname, 'public', 'index.html');
+//     await fs.promises.access(indexPath, fs.constants.F_OK);
+//     res.sendFile(indexPath);
+//   } catch (err) {
+//     console.error('index.html not found:', err);
+//     res.status(404).send('404 Not Found');
+//   }
+// });
+
+// Express error handler middleware
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({ error: 'เกิดข้อผิดพลาดที่เซิร์ฟเวอร์' });
 });
 
 // Start server

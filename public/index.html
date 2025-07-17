@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>งานธุรการ - สภ.เมืองชลบุรี</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/index.css" />
+  <link rel="stylesheet" href="css/nav.css">
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body>
+
+  <div id="navbar"></div>
+
+  <!-- แสดงชื่อผู้ใช้ -->
+  <div id="user-name" style="margin: 10px 0; font-weight: bold;"></div>
+
+  <h1>📚 รายการหนังสือ</h1>
+
+  <h2>รายชื่อผู้ใช้</h2>
+
+  <!-- ปุ่ม logout -->
+  <button onclick="logout()">ออกจากระบบ</button>
+
+  <h2>ค้นหาและแสดงหนังสือ</h2>
+  <input type="text" id="search-input" placeholder="🔍 พิมพ์ชื่อเรื่องหรือเลขที่หนังสือ..." />
+  <ul id="books-ul"></ul>
+
+  <div id="loading" style="display:none;">⏳ กำลังโหลดข้อมูล...</div>
+  <div id="error"></div>
+
+  <!-- Scripts -->
+  <script src="js/auth.js"></script>
+  <script src="js/index.js"></script>
+  <script src="js/navbar.js"></script>
+
+</body>
+
+</html>
