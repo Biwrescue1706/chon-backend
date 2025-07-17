@@ -1,0 +1,110 @@
+/* เมนูนำทาง */
+nav {
+  background-color: #2c3e50;
+  padding: 10px 20px;
+  border-radius: 6px;
+  margin-bottom: 30px;
+}
+
+nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+}
+
+nav ul li {
+  margin-right: 20px;
+}
+
+nav ul li a {
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1.1em;
+  transition: color 0.3s ease;
+}
+
+nav ul li a:hover {
+  color: #1abc9c;
+}
+
+/* หัวข้อ */
+h1 {
+  font-size: 2.2em;
+  margin-bottom: 0.2em;
+}
+
+h2 {
+  font-size: 1.6em;
+  margin-top: 1.5em;
+  margin-bottom: 0.6em;
+  color: #2c3e50;
+}
+
+/* รายชื่อผู้ใช้และหนังสือ */
+#names-ul,
+#books-ul {
+  list-style: none;
+  padding-left: 0;
+  max-width: 600px;
+}
+
+#names-ul li,
+#books-ul li {
+  background: #ffffff;
+  margin-bottom: 10px;
+  padding: 12px 15px;
+  border-radius: 6px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  font-size: 1em;
+}
+
+/* กล่องค้นหา */
+#search-input {
+  padding: 10px 15px;
+  font-size: 1em;
+  width: 100%;
+  max-width: 400px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  box-sizing: border-box;
+  transition: border-color 0.3s ease;
+}
+
+#search-input:focus {
+  outline: none;
+  border-color: #1abc9c;
+}
+
+/* ปุ่มออกจากระบบ */
+#logout-btn {
+  background-color: #e74c3c;
+  color: white;
+  padding: 12px 25px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: 600;
+  transition: background-color 0.3s ease;
+  margin-top: 20px;
+}
+
+#logout-btn:hover {
+  background-color: #c0392b;
+}
+
+/* ข้อความสถานะ */
+#error {
+  color: #e74c3c;
+  margin-top: 10px;
+  font-weight: 600;
+}
+
+#loading {
+  margin-top: 10px;
+  font-style: italic;
+  color: #555;
+}

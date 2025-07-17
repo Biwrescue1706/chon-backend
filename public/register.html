@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>งานธุรการ สภ.เมืองชลบุรี</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+</head>
+
+<body>
+  <h1>งานธุรการ - สภ.เมืองชลบุรี</h1>
+  <h1>สมัครสมาชิก</h1>
+  <form id="registerForm">
+    <label>ผู้ใช้งาน :
+      <input type="text" name="username" required />
+    </label><br><br>
+    <label>ชื่อ :
+      <input type="text" name="name" required />
+    </label><br><br>
+    <label>อีเมล :
+      <input type="email" name="email" required />
+    </label><br><br>
+    <label>รหัสผ่าน :
+      <input type="password" name="password" required />
+    </label><br><br>
+    <label> บทบาท :
+      <select name="role" required>
+        <option value="">-- เลือกสายงาน --</option>
+        <option value="1">ผกก</option>
+        <option value="2">สว.อก</option>
+        <option value="3">สอบสวน</option>
+        <option value="4">ป.</option>
+        <option value="5">จราจร</option>
+        <option value="6">สืบสวน</option>
+        <option value="7">ธุรการ</option>
+        <option value="8">ทั้งหมด</option>
+      </select>
+    </label><br><br>
+    <button type="submit">Register</button>
+  </form>
+  <p>มีบัญชีแล้ว? <a href="login.html">เข้าสู่ระบบ</a></p>
+
+  <script src="js/register.js"></script>
+</body>
+
+</html>

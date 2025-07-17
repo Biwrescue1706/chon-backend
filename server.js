@@ -14,7 +14,7 @@ const SALT_ROUNDS = 10;
 // === CORS ===
 const corsOptions = {
   origin: [
-    'http://127.0.0.1:5500',
+    'http://127.0.0.1:5501',
     'http://localhost:3000',
     'https://mueangchon1.onrender.com'
   ],
@@ -243,19 +243,6 @@ app.delete('/api/books/:id', async (req, res) => {
 app.get('/api/private-data', verifyToken, (req, res) => {
   res.json({ message: '✅ ข้อมูลลับ', user: req.user });
 });
-
-// --- SPA Fallback for client-side routing ---
-// app.get('*', async (req, res, next) => {
-//   console.log('Fallback catch:', req.originalUrl);
-//   try {
-//     const indexPath = path.join(__dirname, 'public', 'index.html');
-//     await fs.promises.access(indexPath, fs.constants.F_OK);
-//     res.sendFile(indexPath);
-//   } catch (err) {
-//     console.error('index.html not found:', err);
-//     res.status(404).send('404 Not Found');
-//   }
-// });
 
 // Express error handler middleware
 app.use((err, req, res, next) => {

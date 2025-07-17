@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>เพิ่มหนังสือ</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/pick-up-book.css" />
+    <link rel="stylesheet" href="css/nav.css" />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+</head>
+
+<body>
+    <div id="navbar"></div>
+
+    <h1>ลงรับหนังสือ</h1>
+
+    <form id="addBookForm">
+        <label>เลขที่หนังสือ :
+            <input type="text" name="book_no" required />
+        </label><br><br>
+        <label>วันที่ :
+            <input type="date" name="date" required />
+        </label><br><br>
+        <label>จาก :
+            <input type="text" name="from" required />
+        </label><br><br>
+        <label>ชื่อเรื่อง :
+            <input type="text" name="title" required />
+        </label><br><br>
+        <label>หมายเหตุ:
+            <input type="text" name="note" />
+        </label><br><br>
+        <button type="submit">บันทึก</button>
+    </form>
+    <script src="js/pick-up-book.js"></script>
+
+    <script src="js/auth.js"></script>
+
+    <script src="js/navbar.js"></script>
+
+    <!-- <script>checkLogin();</script> -->
+
+</body>
+
+</html>
