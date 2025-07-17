@@ -9,12 +9,13 @@ const fs = require('fs');
 const { generateToken, verifyToken } = require('./auth');
 
 const app = express();
+const PORT = process.env.PORT || 3000;
 const SALT_ROUNDS = 10;
 
-// === CORS ===
+// CORS setup (แก้ origin ตาม frontend ของคุณ)
 const corsOptions = {
   origin: [
-    'http://127.0.0.1:5501',    // แก้จาก 5500 เป็น 5501 ถ้าคุณใช้ live server port นี้
+    'http://127.0.0.1:5501',
     'http://localhost:3000',
     'https://mueangchon1.onrender.com'
   ],
@@ -25,10 +26,10 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 
-// Serve static files from public folder
+// Serve static files (ถ้ามี frontend ใน public)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Firebase Admin Setup
+// Firebase Admin setup
 let serviceAccount;
 if (process.env.FIREBASE_SERVICE_ACCOUNT) {
   serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
@@ -39,19 +40,14 @@ serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://mueangchonburi-c9438-default-rtdb.asia-southeast1.firebasedatabase.app"
+  databaseURL: process.env.FIREBASE_DB_URL || "https://mueangchonburi-c9438-default-rtdb.asia-southeast1.firebasedatabase.app"
 });
 
 const db = admin.database();
-const booksRef = db.ref('books');
 const usersRef = db.ref('users');
+const booksRef = db.ref('books');
 
-// Health Check
-app.get('/api/health', (req, res) => {
-  res.json({ status: '✅ Backend OK' });
-});
-
-// --- Auth Routes ---
+// --- Auth APIs ---
 
 app.post('/api/register', async (req, res) => {
   const { username, password, name, email, role } = req.body;
@@ -71,6 +67,7 @@ app.post('/api/register', async (req, res) => {
       if (!isNaN(idNum) && idNum > maxId) maxId = idNum;
     });
     const newUserId = maxId + 1;
+
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
     const now = new Date().toISOString();
 
@@ -109,14 +106,16 @@ app.post('/api/login', async (req, res) => {
       UserId: user.UserId,
       Username: user.Username,
       Role: user.Role
-    });
+    }, '10m');
+
+    const isProduction = process.env.NODE_ENV === 'production';
+
     res.cookie('jwt', token, {
       httpOnly: true,
-      secure: true, // ต้องใช้ https เท่านั้น ถ้า local อาจต้อง set false
-      sameSite: 'None',
+      secure: isProduction,
+      sameSite: isProduction ? 'None' : 'Lax',
       maxAge: 10 * 60 * 1000 // 10 นาที
     });
-    res.json({ message: 'เข้าสู่ระบบสำเร็จ' });
 
     res.json({
       message: 'เข้าสู่ระบบสำเร็จ',
@@ -141,103 +140,148 @@ app.post('/api/logout', (req, res) => {
     secure: isProduction,
     sameSite: isProduction ? 'None' : 'Lax',
     maxAge: 0,
-    path: '/',
+    path: '/'
   });
   res.json({ message: 'ออกจากระบบแล้ว' });
 });
 
-// --- User APIs ---
+// --- Users CRUD ---
 
 app.get('/api/users', async (_req, res) => {
-  const snapshot = await usersRef.once('value');
-  res.json(snapshot.val() || {});
+  try {
+    const snapshot = await usersRef.once('value');
+    res.json(snapshot.val() || {});
+  } catch (err) {
+    console.error('[GET USERS ERROR]', err);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดในการโหลดผู้ใช้' });
+  }
 });
 
 app.get('/api/users/:id', async (req, res) => {
-  const id = req.params.id;
-  const snapshot = await usersRef.once('value');
-  const users = snapshot.val() || {};
-  const found = Object.values(users).find(u => String(u.UserId) === id);
-  if (!found) return res.status(404).json({ error: 'ไม่พบผู้ใช้นี้' });
-  res.json(found);
+  try {
+    const id = req.params.id;
+    const snapshot = await usersRef.once('value');
+    const users = snapshot.val() || {};
+    const found = Object.values(users).find(u => String(u.UserId) === id);
+    if (!found) return res.status(404).json({ error: 'ไม่พบผู้ใช้นี้' });
+    res.json(found);
+  } catch (err) {
+    console.error('[GET USER ERROR]', err);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาด' });
+  }
 });
 
 app.put('/api/users/:id', async (req, res) => {
-  const id = req.params.id;
-  const { name, email, role } = req.body;
-  const snapshot = await usersRef.once('value');
-  const users = snapshot.val() || {};
-  let foundKey = null;
-  Object.entries(users).forEach(([key, u]) => {
-    if (String(u.UserId) === id) foundKey = key;
-  });
-  if (!foundKey) return res.status(404).json({ error: 'ไม่พบผู้ใช้นี้' });
+  try {
+    const id = req.params.id;
+    const { name, email, role } = req.body;
+    const snapshot = await usersRef.once('value');
+    const users = snapshot.val() || {};
+    let foundKey = null;
+    Object.entries(users).forEach(([key, u]) => {
+      if (String(u.UserId) === id) foundKey = key;
+    });
+    if (!foundKey) return res.status(404).json({ error: 'ไม่พบผู้ใช้นี้' });
 
-  const updates = {};
-  if (name) updates.Name = name;
-  if (email) updates.Email = email;
-  if (role) updates.Role = role;
+    const updates = {};
+    if (name) updates.Name = name;
+    if (email) updates.Email = email;
+    if (role) updates.Role = role;
 
-  await usersRef.child(foundKey).update(updates);
-  res.json({ message: 'อัปเดตสำเร็จ', updates });
+    await usersRef.child(foundKey).update(updates);
+    res.json({ message: 'อัปเดตสำเร็จ', updates });
+  } catch (err) {
+    console.error('[UPDATE USER ERROR]', err);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดในการอัปเดต' });
+  }
 });
 
 app.delete('/api/users/:id', async (req, res) => {
-  const id = req.params.id;
-  const snapshot = await usersRef.once('value');
-  const users = snapshot.val() || {};
-  let foundKey = null;
-  Object.entries(users).forEach(([key, u]) => {
-    if (String(u.UserId) === id) foundKey = key;
-  });
-  if (!foundKey) return res.status(404).json({ error: 'ไม่พบผู้ใช้นี้' });
+  try {
+    const id = req.params.id;
+    const snapshot = await usersRef.once('value');
+    const users = snapshot.val() || {};
+    let foundKey = null;
+    Object.entries(users).forEach(([key, u]) => {
+      if (String(u.UserId) === id) foundKey = key;
+    });
+    if (!foundKey) return res.status(404).json({ error: 'ไม่พบผู้ใช้นี้' });
 
-  await usersRef.child(foundKey).remove();
-  res.json({ message: 'ลบสำเร็จ' });
+    await usersRef.child(foundKey).remove();
+    res.json({ message: 'ลบสำเร็จ' });
+  } catch (err) {
+    console.error('[DELETE USER ERROR]', err);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดในการลบ' });
+  }
 });
 
-// --- Book APIs ---
+// --- Books CRUD ---
 
 app.post('/api/books', async (req, res) => {
-  const { BooksId, BookNo, date, from, to = 'ผกก', Title, Work, note } = req.body;
-  if (!Title) return res.status(400).json({ error: 'ต้องระบุ Title' });
+  try {
+    const { BooksId, BookNo, date, from, to = 'ผกก', Title, Work, note } = req.body;
+    if (!Title) return res.status(400).json({ error: 'ต้องระบุ Title' });
 
-  const ref = booksRef.push();
-  await ref.set({ BooksId, BookNo, date, from, to, Title, Work, note });
-  res.status(201).json({ id: ref.key, BooksId });
+    const newBookRef = booksRef.push();
+    await newBookRef.set({ BooksId, BookNo, date, from, to, Title, Work, note });
+    res.status(201).json({ message: 'เพิ่มหนังสือสำเร็จ', id: newBookRef.key, BooksId });
+  } catch (err) {
+    console.error('[CREATE BOOK ERROR]', err);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดในการเพิ่มหนังสือ' });
+  }
 });
 
 app.get('/api/books', async (_req, res) => {
-  const snapshot = await booksRef.once('value');
-  res.json(snapshot.val() || {});
+  try {
+    const snapshot = await booksRef.once('value');
+    res.json(snapshot.val() || {});
+  } catch (err) {
+    console.error('[GET BOOKS ERROR]', err);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดในการโหลดหนังสือ' });
+  }
 });
 
 app.get('/api/books/:id', async (req, res) => {
-  const id = req.params.id;
-  const snapshot = await booksRef.child(id).once('value');
-  if (!snapshot.exists()) return res.status(404).json({ error: 'ไม่พบหนังสือ' });
-  res.json(snapshot.val());
+  try {
+    const id = req.params.id;
+    const snapshot = await booksRef.child(id).once('value');
+    if (!snapshot.exists()) return res.status(404).json({ error: 'ไม่พบหนังสือ' });
+    res.json(snapshot.val());
+  } catch (err) {
+    console.error('[GET BOOK ERROR]', err);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาด' });
+  }
 });
 
 app.put('/api/books/:id', async (req, res) => {
-  const id = req.params.id;
-  const snapshot = await booksRef.child(id).once('value');
-  if (!snapshot.exists()) return res.status(404).json({ error: 'ไม่พบหนังสือ' });
+  try {
+    const id = req.params.id;
+    const snapshot = await booksRef.child(id).once('value');
+    if (!snapshot.exists()) return res.status(404).json({ error: 'ไม่พบหนังสือ' });
 
-  await booksRef.child(id).update(req.body);
-  res.json({ message: 'อัปเดตสำเร็จ', updates: req.body });
+    await booksRef.child(id).update(req.body);
+    res.json({ message: 'อัปเดตสำเร็จ', updates: req.body });
+  } catch (err) {
+    console.error('[UPDATE BOOK ERROR]', err);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดในการอัปเดตหนังสือ' });
+  }
 });
 
 app.delete('/api/books/:id', async (req, res) => {
-  const id = req.params.id;
-  const snapshot = await booksRef.child(id).once('value');
-  if (!snapshot.exists()) return res.status(404).json({ error: 'ไม่พบหนังสือ' });
+  try {
+    const id = req.params.id;
+    const snapshot = await booksRef.child(id).once('value');
+    if (!snapshot.exists()) return res.status(404).json({ error: 'ไม่พบหนังสือ' });
 
-  await booksRef.child(id).remove();
-  res.json({ message: 'ลบหนังสือสำเร็จ' });
+    await booksRef.child(id).remove();
+    res.json({ message: 'ลบหนังสือสำเร็จ' });
+  } catch (err) {
+    console.error('[DELETE BOOK ERROR]', err);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดในการลบหนังสือ' });
+  }
 });
 
-// --- Private Route Example ---
+// --- Private API example with JWT middleware ---
 app.get('/api/private-data', verifyToken, (req, res) => {
   res.json({ message: '✅ ข้อมูลลับ', user: req.user });
 });
@@ -248,6 +292,19 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'เกิดข้อผิดพลาดที่เซิร์ฟเวอร์' });
 });
 
+// SPA fallback for frontend routing (optional, ถ้าใช้ SPA)
+app.get('*', (req, res, next) => {
+  const indexPath = path.join(__dirname, 'public', 'index.html');
+  fs.access(indexPath, fs.constants.F_OK, (err) => {
+    if (err) {
+      console.error('index.html not found:', err);
+      return res.status(404).send('404 Not Found');
+    }
+    res.sendFile(indexPath);
+  });
+});
+
 // Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+});

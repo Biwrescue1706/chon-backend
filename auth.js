@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const SECRET_KEY = process.env.JWT_SECRET || 'my_super_secret_key';
+const SECRET_KEY = process.env.SECRET_KEY || 'my_super_secret_key';
 
 console.log('🔐 Loaded SECRET_KEY:', SECRET_KEY);
 
