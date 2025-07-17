@@ -13,12 +13,13 @@ const SALT_ROUNDS = 10;
 const corsOptions = {
   origin: [
     'http://127.0.0.1:5500',
-    'http://localhost:5500',
+    'http://localhost:3000',
     'https://mueangchon1.onrender.com',
-    'https://biwrescue1706.github.io'
+    'https://mueangchon1-o1ad.onrender.com',
   ],
   credentials: true
 };
+
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
